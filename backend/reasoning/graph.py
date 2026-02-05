@@ -1,34 +1,59 @@
 from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, END
 from backend.rag_engine.vector_store import InspiraVault
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
 
-# 1. Define the state of our graph (What data flows between nodes)
 class GraphState(TypedDict):
-    question: str      # User input
-    context: list[str] # Retrieved fragments from DB
-    answer: str        # Final AI response
+    question: str
+    context: list[str]
+    answer: str
 
-# 2. Define the Retrieval Node
+# Initialize the "Brain"
+llm = ChatOllama(model="llama3", temperature=0.7)
+
 def retrieve_node(state: GraphState):
     """
-    Node to fetch relevant 'Clarity' from the Vault.
+    Node to retrieve relevant fragments from the vector store.
     """
-    print(f"--- [AGENT] Searching Vault for: {state['question']} ---")
-    vault = InspiraVault()
-    relevant_chunks = vault.search_clarity(state['question'])
+    print("--- [AGENT] Retrieving Relevant Fragments ---")
     
-    # Update the state with found context
+    vault = InspiraVault()
+
+    relevant_chunks = vault.search_clarity(state['question'])
+
     return {"context": relevant_chunks}
 
-# 3. Build the Graph
+def generate_node(state: GraphState):
+    """
+    Node to synthesize inspiration from retrieved fragments.
+    """
+    print("--- [AGENT] Synthesizing Inspiration with LLM ---")
+    
+    # Create a prompt that injects the context
+    prompt = ChatPromptTemplate.from_template("""
+    You are 'Inspira', a creative AI career coach. 
+    Using the retrieved fragments from the user's background below, 
+    provide a unique insight or a career inspiration suggestion.
+    
+    Context: {context}
+    Question: {question}
+    
+    Inspiration:
+    """)
+    
+    # Chain: Prompt -> LLM
+    chain = prompt | llm
+    response = chain.invoke({"context": state['context'], "question": state['question']})
+    
+    return {"answer": response.content}
+
+# Update the Workflow
 workflow = StateGraph(GraphState)
-
-# Add nodes
 workflow.add_node("retrieve", retrieve_node)
-
-# Set the flow: Start -> Retrieve -> End
+workflow.add_node("generate", generate_node)
 workflow.set_entry_point("retrieve")
-workflow.add_edge("retrieve", END)
+workflow.add_edge("retrieve", "generate") # Retrieve -> Generate
+workflow.add_edge("generate", END)        # Generate -> End
 
-# Compile the graph
 app = workflow.compile()
