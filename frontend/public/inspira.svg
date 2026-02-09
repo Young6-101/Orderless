@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bulbGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a86ce;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#065a8f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Light bulb -->
+  <path d="M50 10 C32 10 20 22 20 38 C20 50 26 56 32 64 L32 78 C32 80 34 82 36 82 L64 82 C66 82 68 80 68 78 L68 64 C74 56 80 50 80 38 C80 22 68 10 50 10 Z" 
+        fill="url(#bulbGradient)" stroke="#065a8f" stroke-width="1.5"/>
+  
+  <!-- Bulb base -->
+  <rect x="38" y="82" width="24" height="5" rx="1" fill="#065a8f"/>
+  <rect x="40" y="87" width="20" height="4" rx="1" fill="#065a8f"/>
+  
+  <!-- Inner glow highlight -->
+  <ellipse cx="44" cy="30" rx="10" ry="15" fill="white" opacity="0.3"/>
+</svg>

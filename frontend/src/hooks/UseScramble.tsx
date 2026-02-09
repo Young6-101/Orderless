@@ -1,22 +1,48 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from 'react';
 
-export const useScramble = (text: string) => {
-  const [displayChar, setDisplayChar] = useState("");
-  const chars = "!@#$%^&*()_+{}[]|;:,.<>?";
+const CHARS = '!@#$%^&*()_+-=[]{}|;:,.<>?/~`';
 
-  const trigger = useCallback(() => {
-    let iteration = 0;
-    const interval = setInterval(() => {
-      setDisplayChar(
-        text.split("").map((letter, index) => {
-          if (index < iteration) return text[index];
-          return chars[Math.floor(Math.random() * chars.length)];
-        }).join("")
-      );
-      if (iteration >= text.length) clearInterval(interval);
-      iteration += 1 / 3;
-    }, 30);
-  }, [text]);
+export function useScramble(text: string, duration = 800) {
+    const [displayText, setDisplayText] = useState(text);
+    const frameRef = useRef<number>();
 
-  return { displayChar, trigger };
-};
+    const trigger = useCallback(() => {
+        if (frameRef.current) {
+            cancelAnimationFrame(frameRef.current);
+        }
+
+        const startTime = Date.now();
+        const textLength = text.length;
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            if (progress === 1) {
+                setDisplayText(text);
+                return;
+            }
+
+            const charsToReveal = Math.floor(progress * textLength);
+            const scrambled = text
+                .split('')
+                .map((char, i) => {
+                    if (i < charsToReveal) {
+                        return char;
+                    }
+                    if (char === ' ') {
+                        return ' ';
+                    }
+                    return CHARS[Math.floor(Math.random() * CHARS.length)];
+                })
+                .join('');
+
+            setDisplayText(scrambled);
+            frameRef.current = requestAnimationFrame(animate);
+        };
+
+        animate();
+    }, [text, duration]);
+
+    return { displayText, trigger };
+}
