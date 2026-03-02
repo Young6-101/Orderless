@@ -98,3 +98,5 @@ temp/
 # ========================
 test_*.py
 *.pdf
+
+my_portfolio/
