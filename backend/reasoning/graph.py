@@ -1,59 +1,26 @@
-from typing import Annotated, TypedDict
+"""
+Main reasoning workflow using LangGraph.
+
+This module orchestrates the RAG-based inspiration generation pipeline:
+1. Retrieve relevant context from vector store
+2. Generate creative career inspiration using LLM
+"""
+
 from langgraph.graph import StateGraph, END
-from backend.rag_engine.vector_store import InspiraVault
-from langchain_ollama import ChatOllama
-from langchain_core.prompts import ChatPromptTemplate
+from backend.reasoning.state import GraphState
+from backend.reasoning.nodes import retrieve_node, generate_node
 
-class GraphState(TypedDict):
-    question: str
-    context: list[str]
-    answer: str
-
-# Initialize the "Brain"
-llm = ChatOllama(model="llama3", temperature=0.7)
-
-def retrieve_node(state: GraphState):
-    """
-    Node to retrieve relevant fragments from the vector store.
-    """
-    print("--- [AGENT] Retrieving Relevant Fragments ---")
-    
-    vault = InspiraVault()
-
-    relevant_chunks = vault.search_clarity(state['question'])
-
-    return {"context": relevant_chunks}
-
-def generate_node(state: GraphState):
-    """
-    Node to synthesize inspiration from retrieved fragments.
-    """
-    print("--- [AGENT] Synthesizing Inspiration with LLM ---")
-    
-    # Create a prompt that injects the context
-    prompt = ChatPromptTemplate.from_template("""
-    You are 'Inspira', a creative AI career coach. 
-    Using the retrieved fragments from the user's background below, 
-    provide a unique insight or a career inspiration suggestion.
-    
-    Context: {context}
-    Question: {question}
-    
-    Inspiration:
-    """)
-    
-    # Chain: Prompt -> LLM
-    chain = prompt | llm
-    response = chain.invoke({"context": state['context'], "question": state['question']})
-    
-    return {"answer": response.content}
-
-# Update the Workflow
+# Build the Workflow
 workflow = StateGraph(GraphState)
+
+# Add nodes
 workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("generate", generate_node)
-workflow.set_entry_point("retrieve")
-workflow.add_edge("retrieve", "generate") # Retrieve -> Generate
-workflow.add_edge("generate", END)        # Generate -> End
 
+# Define the flow
+workflow.set_entry_point("retrieve")
+workflow.add_edge("retrieve", "generate")  # Retrieve -> Generate
+workflow.add_edge("generate", END)         # Generate -> End
+
+# Compile the graph into an executable app
 app = workflow.compile()
