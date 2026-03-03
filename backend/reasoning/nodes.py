@@ -1,46 +1,17 @@
-from backend.rag_engine.vector_store import InspiraVault
+from backend.rag_engine.retriever import InspiraRetriever
 from backend.reasoning.state import GraphState
 from backend.reasoning.model_client import get_llm
-from backend.file_processor.image_handler import ImageDescriber
 from langchain_core.prompts import ChatPromptTemplate
 
 def retrieve_node(state: GraphState):
     """
     Node to retrieve relevant fragments from the vector store.
-    
-    This node:
-    1. Searches for relevant text chunks based on the question
-    2. Searches for relevant images based on the question
-    3. Uses moondream to describe the images
-    4. Combines text and image descriptions into context for the LLM
-    
-    Args:
-        state: Current graph state containing the question
-        
-    Returns:
-        dict: Updated state with context field populated
+    Delegates to InspiraRetriever for text + image retrieval.
     """
     print("--- [AGENT] Retrieving Relevant Fragments ---")
-    
-    vault = InspiraVault()
-
-    # Get relevant text chunks
-    text_chunks = vault.search_clarity(state['question'])
-
-    # Search for relevant images using the text query
-    image_paths = vault.search_vision(state['question'])
-
-    # Generate descriptions for retrieved images using moondream
-    combined_context = text_chunks.copy()
-    if image_paths:
-        print(f"--- [AGENT] Analyzing {len(image_paths)} design samples with moondream ---")
-        describer = ImageDescriber()
-        
-        # Use pattern analysis for design insights
-        pattern_analysis = describer.analyze_design_pattern(image_paths)
-        combined_context.append(f"\n--- Design Pattern Analysis ---\n{pattern_analysis}\n")
-
-    return {"context": combined_context}
+    retriever = InspiraRetriever()
+    context = retriever.retrieve(state['question'])
+    return {"context": context}
 
 def generate_node(state: GraphState):
     """
@@ -64,19 +35,19 @@ def generate_node(state: GraphState):
     
     # Create a prompt that injects the context
     prompt = ChatPromptTemplate.from_template("""
-    You are 'Inspira', an AI design inspiration analyst.
-    
-    The user has uploaded design samples they like. Your task:
-    1. Analyze the common patterns across all samples (color schemes, layouts, styles)
-    2. Identify the user's underlying aesthetic preferences
-    3. Provide concrete design recommendations based on these patterns
-    
-    Design Samples Analysis:
+    You are 'Inspira', an AI assistant that finds patterns and generates insights
+    from the user's uploaded materials (documents, images, notes, etc.).
+
+    Based on the retrieved context below, answer the user's question.
+    Identify common themes, recurring patterns, and provide actionable recommendations.
+    Tailor your response to the type of content and the user's question.
+
+    Retrieved Context:
     {context}
-    
+
     User's Question: {question}
-    
-    Design Insights & Recommendations:
+
+    Insights & Recommendations:
     """)
     
     # Chain: Prompt -> LLM

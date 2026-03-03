@@ -68,44 +68,43 @@ class ImageDescriber:
             descriptions.append(desc)
         return descriptions
     
-    def analyze_design_pattern(self, image_paths: list[str]) -> str:
+    def analyze_pattern(self, image_paths: list[str]) -> str:
         """
-        Analyze multiple design samples to identify common patterns.
+        Analyze multiple images to identify common patterns.
         
-        This method describes each design individually, then asks the model
+        This method describes each image individually, then asks the model
         to synthesize common patterns across all samples.
         
         Args:
-            image_paths: List of design image paths
+            image_paths: List of image file paths
             
         Returns:
-            str: Synthesized analysis of common design patterns
+            str: Synthesized analysis of common patterns
         """
         if not image_paths:
             return "No design samples provided."
         
-        print(f"--- [LOG] Analyzing {len(image_paths)} design samples for patterns ---")
+        print(f"--- [LOG] Analyzing {len(image_paths)} images for patterns ---")
         
         # First, describe each design
         individual_descriptions = []
         for idx, image_path in enumerate(image_paths):
             desc = self.describe_image(
                 image_path,
-                prompt="Analyze this design. Focus on: color palette (specific colors), layout structure, typography style, spacing/whitespace, and overall aesthetic."
+                prompt="Describe this image in detail. Focus on the key visual elements, style, composition, and any notable patterns or characteristics."
             )
             individual_descriptions.append(f"Sample {idx+1}: {desc}")
         
         # Then, synthesize patterns (using text-only LLM call)
-        synthesis_prompt = f"""Based on these design descriptions, identify common patterns:
+        synthesis_prompt = f"""Based on these image descriptions, identify common patterns and themes:
 
 {chr(10).join(individual_descriptions)}
 
 Summarize:
-1. Common color themes (be specific about colors)
-2. Recurring layout patterns
-3. Typography preferences
-4. Spacing/whitespace usage
-5. Overall aesthetic style"""
+1. Common visual themes and recurring elements
+2. Shared style or aesthetic characteristics
+3. Notable patterns across the samples
+4. Key takeaways and insights"""
 
         try:
             response = self.model.invoke(synthesis_prompt)

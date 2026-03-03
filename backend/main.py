@@ -7,6 +7,8 @@ from typing import List
 
 # Import your custom modules
 from backend.file_processor.pdf_handler import extract_text_from_pdf
+from backend.file_processor.ppt_handler import extract_text_from_pptx
+from backend.file_processor.audio_handler import AudioTranscriber
 from backend.rag_engine.vector_store import InspiraVault
 from backend.reasoning.graph import app as reasoning_app
 
@@ -42,12 +44,15 @@ async def health_check():
     """Simple endpoint to check if backend is running."""
     return {"status": "ok", "message": "Inspira Backend is running 🚀"}
 
+# Supported audio extensions
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".wma", ".aac", ".webm"}
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     """
-    Endpoint for uploading files (PDFs).
+    Endpoint for uploading files (PDFs, PPTs, Audio).
     1. Saves the file locally (temporarily).
-    2. Extracts text using pdf_handler.
+    2. Extracts text using the appropriate handler.
     3. (TODO: In future steps) Embeds and stores text in Vector DB.
     """
     try:
@@ -60,14 +65,27 @@ async def upload_file(file: UploadFile = File(...)):
             
         # 3. Process the file based on type
         text_content = ""
-        if file.filename.endswith(".pdf"):
+        filename_lower = file.filename.lower()
+        ext = os.path.splitext(filename_lower)[1]
+
+        if ext == ".pdf":
             text_content = extract_text_from_pdf(temp_file_path)
+        elif ext in (".pptx", ".ppt"):
+            text_content = extract_text_from_pptx(temp_file_path)
+        elif ext in AUDIO_EXTENSIONS:
+            transcriber = AudioTranscriber()
+            text_content = transcriber.transcribe(temp_file_path)
+        else:
+            os.remove(temp_file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {ext}. Supported: .pdf, .pptx, .ppt, {', '.join(sorted(AUDIO_EXTENSIONS))}"
+            )
             
-            # --- RAG Integration Point ---
-            # Here we would initialize the Vault and add the document
-            # vault = InspiraVault()
-            # vault.add_document(text_content) 
-            # -----------------------------
+        # --- RAG Integration Point ---
+        # vault = InspiraVault()
+        # vault.add_document(text_content) 
+        # -----------------------------
             
         # 4. Cleanup: Remove temp file
         os.remove(temp_file_path)
@@ -78,7 +96,7 @@ async def upload_file(file: UploadFile = File(...)):
         return {
             "filename": file.filename,
             "message": "File processed successfully!",
-            "preview": text_content[:200] + "..." # specific logic to show it worked
+            "preview": text_content[:200] + "..."
         }
 
     except Exception as e:
